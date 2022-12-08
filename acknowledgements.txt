@@ -1,0 +1,8 @@
+For our demo we will use a subset of a dataset on wines which have been recently acquired at the Fondazione E. Mach in Italy (many thanks to Dr. Mar Garcia Aloy). The dataset has been designed for training purposes and includes MS and DDA (MS2 e MS3) (in positive and negative polarity) acquisition of a 20 wines with the following characteristics:
+
+* two colors: red(10), white(10)
+* 12 varieties
+
+The acquisition sequences also included blanks and pooled QC. Al data were acquired with a UPLC-LTQ-Orbitrap instrument. A set of standard injections is also available to illustrate the annotation strategy.
+
+The data was presented by Pietro Franceschi in the EMBO Metabolomics workshop 2022
