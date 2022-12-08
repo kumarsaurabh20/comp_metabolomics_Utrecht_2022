@@ -1,0 +1,193 @@
+---
+title: "xcms_metabolomics_2022"
+author: "Kumar"
+date: "12/5/2022"
+output: html_document
+---
+
+## Data directory
+Set the root.dir below. Provide the path of your data folder
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = '/Users/singh018/Downloads/EMBO2022/Tuesday/Data')
+```
+
+
+```{r}
+library(xcms)
+library(RColorBrewer)
+library(pander)
+library(magrittr)
+library(pheatmap)
+library(SummarizedExperiment)
+```
+
+## Change work directory
+```{r}
+getwd()
+```
+
+## Reading one injection
+
+To understand how the data look like, let's start reading in the data coming from one QC injection
+NOTE: Polarity is not really required for xcms data analysis, you should just make sure to just analyze samples measured with the same polarity. If you want to set the polarity you could do that with:
+**fData(data)$polarity <- 0L**
+Where data is the object you got from readMSData. The polarity encoding is 0L for negative polarity, 1L for positive polarity.
+
+
+```{r}
+raw_one <- readMSData(
+  files = "x016_X_QC_X_4_NEG_DDA.mzML",
+  msLevel. = c(1,2), ## we read only MS1 and MS2
+  mode = "onDisk")  ## with this parameter the data are not loaded into RAM
+```
+
+
+Let's look to the object
+
+```{r}
+raw_one
+```
+
+Let's first get the retention times where spectra were collected
+
+```{r}
+## method to extract the retention times
+rtime(raw_one)[1:50]
+```
+
+
+```{r}
+## this gives the type of the corresponding 10 scans
+msLevel(raw_one)[1:10]
+```
+
+As you see, they are interleaved. 
+
+
+## Full Scans
+
+Let's now get out the full scans 
+
+```{r}
+fs_raw <- raw_one %>% 
+  filterMsLevel(1)
+```
+
+
+We already know how the `rt` will look like, but what about `mz` and `intensity`
+
+
+```{r}
+rt <- rtime(fs_raw)
+mz <- mz(fs_raw)
+I <- intensity(fs_raw)
+```
+
+And their structure ...
+
+```{r}
+glimpse(mz[1:4])
+```
+
+```{r}
+glimpse(I[1:4])
+```
+
+So both object are lists: for every scan we have a vector of `mz` and a vector of `I`: a spectrum. We have 3D data!
+
+### Plot by hand
+
+As we have seen in in the lecture, it is mportant to be able to plot the raw data
+
+
+```{r}
+plot(mz[[1]], I[[1]], type = "h")
+```
+
+The first spectrum can be extracted by standard list subsetting
+
+```{r}
+s1 <- fs_raw[[1]]
+s1
+```
+
+This is an object of class "Specrum1" So a method for this type of object is already available
+
+```{r}
+plot(s1)
+```
+
+This can be also made interactive with a little (and inelegant) trick
+
+```{r}
+ggplotly(plot(s1))
+```
+
+
+This is an alternative 2D visualization of the ion map
+
+```{r}
+ggplotly(tibble(rt = rt, mz = mz, I = I)  %>% 
+  unnest(c("mz","I")) %>%
+  filter(mz > 284 & mz < 300) %>% 
+  filter(rt > 200 & rt < 300) %>% 
+  ggplot() + 
+  geom_point(aes(x = rt, y = mz, col = log10(I), size = I)) + 
+  scale_color_viridis_c() + 
+  theme_light())
+
+```
+
+
+```{r}
+# extract the chromatogram
+#chr_raw <- chromatogram(fs_raw, 
+#                        mz = 295.0445 + 0.01*c(-1, 1),   ## the m/z range
+#                        rt = 250 + 60*c(-1, 1)) ## the rt range
+
+chr_raw <- chromatogram(fs_raw, mz = 289.0713 + 0.01*c(-1,1), rt = 277 + 60*c(-1,1))
+## plot the object
+chr_raw
+```
+
+As before we can get out the data and manually plot the trace
+```{r}
+plot(rtime(chr_raw[1,1]), intensity(chr_raw[1,1]), type = "b")
+```
+
+
+Back to the chromatogram object, let's read in the data coming from two different injections
+
+```{r}
+two_raw <- readMSData(
+  files = c("data/x016_X_QC_X_4_NEG_DDA.mzML","data/x020_wht_gewurz_A_1_NEG_DDA.mzML"),
+  msLevel. = 1, ## we read only MS1 and MS2
+  mode = "onDisk")  ## with this parameter the data are not loaded into RAM
+```
+
+
+As before we "slice" an extracted ion chromatogram
+
+```{r}
+# extract the chromatogram
+chr_raw_2 <- chromatogram(two_raw, 
+                        mz = 295.0445 + 0.01*c(-1, 1), 
+                        rt = 250 + 60*c(-1, 1))
+
+chr_raw_2
+```
+
+Here we could extract the rt and intensity for the separate files, but we can plot them with a handy `xcms` method, which is also giving some additional info:
+
+```{r}
+plot(chr_raw_2)
+```
+
+
+## Try it out
+
+* Play around with the previous 2d map and look for potentially interesting ions. Plot their EIC
+* If you look to the map, can you say why the signal with high intensity are organized in vertical groups?
+* The horizontal trace around 289 seems to show two peaks. What does it mean? Can you plot its EIC)? Can you compare the spectra measured at the top of the two peaks?
